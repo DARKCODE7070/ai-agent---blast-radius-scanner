@@ -1,0 +1,52 @@
+THE ACTUAL RAW INPUT WE SHOULD EXPECT FROM MCP SERVER'S "tools/list" for the nimbus cart project
+
+{ "tools": [{
+  "name": "slack_post_message",
+  "description": "Post a message to a channel",
+  "inputSchema": { "type": "object", "properties": { "channel": {"type":"string"}, "text": {"type":"string"} } },
+  "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true }
+}] }
+
+But we there exists some fields which we dont requrie for out project so we are gonna trim them and get a json object with keys - name(important for labelling graph), description
+(important for the later automated report).
+
+{ "tools": [{
+  "name": "slack_post_message",
+  "description": "Post a message to a channel",
+}] }
+
+Then we would require an algorithm to be able to assign values to fields like
+"blast_radius": { "access": "write", "reaches": "ops_alerts_channel",
+                  "sensitivity": 3, "reversibility": 4,
+                  "requires_human_approval": false }
+access :can be read/write: gives the direction of the directed graph
+reaches: gives the neighbour of the current node
+sensitivity: an algorithm will assign nodes with a value which represent its damage causing property. like access to important files will have a score 5 (score is from 1-5).
+"irreversibility": a number from 1-5 which number closer to 5 means the change is harder to be undone.
+"requires_human_approval": tells if there is a human in the loop(a part of future work)
+
+so we have kept this scoring part for phase 3. applying the scoring part on a raw input like 
+
+{ "tools": [{
+  "name": "slack_post_message",
+  "description": "Post a message to a channel",
+  "inputSchema": { "type": "object", "properties": { "channel": {"type":"string"}, "text": {"type":"string"} } },
+  "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true }
+}] } 
+
+will give a json object like 
+
+{
+  "name": "suppliers.place_purchase_order",
+  "description": "Place a binding purchase order with a supplier.",
+  "inputSchema": { "type": "object" },
+  "scopes": ["suppliers:po:place"],
+  "blast_radius": {
+    "access": "write",
+    "reaches": "supplier_orders",
+    "data_trust": null,
+    "requires_human_approval": false,
+    "sensitivity": 4,
+    "irreversibility": 5
+  }
+}
