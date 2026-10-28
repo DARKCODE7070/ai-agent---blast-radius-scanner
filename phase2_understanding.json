@@ -7,7 +7,7 @@ THE ACTUAL RAW INPUT WE SHOULD EXPECT FROM MCP SERVER'S "tools/list" for the nim
   "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true }
 }] }
 
-But we there exists some fields which we dont requrie for out project so we are gonna trim them and get a json object with keys - name(important for labelling graph), description
+But there exists some fields which we dont requrie for out project so we are gonna trim them and get a json object with keys - name(important for labelling graph), description
 (important for the later automated report).
 
 { "tools": [{
@@ -34,19 +34,22 @@ so we have kept this scoring part for phase 3. applying the scoring part on a ra
   "annotations": { "readOnlyHint": false, "destructiveHint": false, "openWorldHint": true }
 }] } 
 
-will give a json object like 
+will give a json object like (just an example)
 
 {
-  "name": "suppliers.place_purchase_order",
-  "description": "Place a binding purchase order with a supplier.",
+  "name": "slack_post_message",
+  "description": "Post a message to a channel",
   "inputSchema": { "type": "object" },
-  "scopes": ["suppliers:po:place"],
+  "scopes": ["slack:write"],
   "blast_radius": {
     "access": "write",
     "reaches": "supplier_orders",
     "data_trust": null,
     "requires_human_approval": false,
     "sensitivity": 4,
-    "irreversibility": 5
+    "irreversibility": 3
   }
 }
+
+then we parse the required data and create a graph using networkX
+and then figure out the blast score and attack paths.
