@@ -1,0 +1,62 @@
+==============================================================================
+ AI AGENT BLAST-RADIUS REPORT
+ Scenario : NimbusCart hardened (Role 1 tool set)
+ File     : scenarios\05_nimbuscart_hardened.json
+==============================================================================
+ Ayush's NimbusCart tools from scenarios.json: Support and Marketing can only
+ create alert drafts, Inventory reads only signed alerts, and binding orders
+ and live promotions need human approval. Shows what the scanner reports for
+ a well-designed set of agents.
+ Agents: 3   Resources: 10   Untrusted entry points: customer_messages
+ Attack paths found: 3   Cross-agent paths: 0
+
+ WORST-CASE BLAST RADIUS: 3  [LOW]
+   customer_messages -> support_agent -> orders.lookup_order
+   (best-first search result matches the DFS maximum of 3)
+
+------------------------------------------------------------------------------
+ RANKED ATTACK PATHS   score = sensitivity x irreversibility x agents steered
+------------------------------------------------------------------------------
+ Rank  Score  Level  Agents   Untrusted entry -> what it reaches
+ 1         3  LOW         1   customer_messages -> orders_db
+ 2         2  LOW         1   customer_messages -> inventory_db
+ 3         2  LOW         1   customer_messages -> ops_alert_drafts (write)
+
+------------------------------------------------------------------------------
+ DETAILS (3 of 3 paths)
+------------------------------------------------------------------------------
+ #1  Score 3  [LOW]   3 x 1 x 1
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- orders.lookup_order (read) --> orders_db
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. Final action: support_agent can read orders_db with
+            orders.lookup_order (sensitivity 3/5), a data-exposure risk.
+            Steering 1 agent gives 3 x 1 x 1 = 3.
+     Fix  : Limit orders.lookup_order to the fields this agent actually needs
+            from orders_db.
+
+ #2  Score 2  [LOW]   2 x 1 x 1
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- inventory.check_stock (read) --> inventory_db
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. Final action: support_agent can read inventory_db with
+            inventory.check_stock (sensitivity 2/5), a data-exposure risk.
+            Steering 1 agent gives 2 x 1 x 1 = 2.
+     Fix  : Low impact - no change needed. Keep it on the watch list.
+
+ #3  Score 2  [LOW]   2 x 1 x 1
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- ops.create_alert_draft (write) --> ops_alert_drafts
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. Final action: ops.create_alert_draft can write
+            ops_alert_drafts - sensitivity 2/5, irreversibility 1/5 (no
+            lasting change). Steering 1 agent gives 2 x 1 x 1 = 2.
+     Fix  : Low impact - no change needed. Keep it on the watch list.
+
+==============================================================================

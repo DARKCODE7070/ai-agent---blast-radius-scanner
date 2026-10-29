@@ -1,0 +1,63 @@
+{
+  "scenario": "Low risk - FAQ bot",
+  "description": "One agent, read-only tools, nothing shared with any other agent. Should produce no false alarms.",
+  "expected_level": "LOW",
+  "resources": [
+    {
+      "id": "customer_questions",
+      "name": "Questions typed by website visitors"
+    },
+    {
+      "id": "kb_articles",
+      "name": "Public help-centre articles"
+    },
+    {
+      "id": "order_status",
+      "name": "Read-only order status view (no payment data)"
+    }
+  ],
+  "agents": [
+    {
+      "name": "faq_agent",
+      "description": "Answers customer questions from the help centre",
+      "tools": [
+        {
+          "name": "support.read_question",
+          "description": "Read a question typed by a website visitor.",
+          "blast_radius": {
+            "access": "read",
+            "reaches": "customer_questions",
+            "data_trust": "untrusted",
+            "requires_human_approval": false,
+            "sensitivity": 1,
+            "irreversibility": 1
+          }
+        },
+        {
+          "name": "kb.search_articles",
+          "description": "",
+          "blast_radius": {
+            "access": "read",
+            "reaches": "kb_articles",
+            "data_trust": "verified",
+            "requires_human_approval": false,
+            "sensitivity": 1,
+            "irreversibility": 1
+          }
+        },
+        {
+          "name": "orders.lookup_status",
+          "description": "",
+          "blast_radius": {
+            "access": "read",
+            "reaches": "order_status",
+            "data_trust": "verified",
+            "requires_human_approval": false,
+            "sensitivity": 2,
+            "irreversibility": 1
+          }
+        }
+      ]
+    }
+  ]
+}

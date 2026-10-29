@@ -1,0 +1,60 @@
+==============================================================================
+ AI AGENT BLAST-RADIUS REPORT
+ Scenario : High risk - NimbusCart
+ File     : scenarios\03_high_nimbuscart.json
+==============================================================================
+ Support and Marketing both post to the shared #ops-alerts channel. Inventory
+ trusts that channel and can place real supplier purchase orders, so a
+ prompt-injected message reaches money.
+ Agents: 3   Resources: 8   Untrusted entry points: customer_messages, social_mentions
+ Attack paths found: 10   Cross-agent paths: 6
+
+ WORST-CASE BLAST RADIUS: 50  [HIGH]
+   customer_messages -> support_agent -> inventory_agent -> suppliers.place_purchase_order
+   (best-first search result matches the DFS maximum of 50)
+
+------------------------------------------------------------------------------
+ RANKED ATTACK PATHS   score = sensitivity x irreversibility x agents steered
+------------------------------------------------------------------------------
+ Rank  Score  Level  Agents   Untrusted entry -> what it reaches
+ 1        50  HIGH        2   customer_messages -> supplier_orders (write)
+ 2        50  HIGH        2   social_mentions -> supplier_orders (write)
+ 3        12  MEDIUM      1   social_mentions -> promotions (write)
+ 4         4  LOW         2   customer_messages -> inventory_db
+ 5         4  LOW         2   social_mentions -> inventory_db
+ 6         4  LOW         1   customer_messages -> ops_alerts (write)
+ 7         4  LOW         1   social_mentions -> ops_alerts (write)
+ 8         3  LOW         1   customer_messages -> orders_db
+ 9         2  LOW         2   customer_messages -> supplier_catalog
+ 10        2  LOW         2   social_mentions -> supplier_catalog
+
+------------------------------------------------------------------------------
+ DETAILS (0 of 10 paths)
+------------------------------------------------------------------------------
+------------------------------------------------------------------------------
+ RECOMMENDED FIRST FIX (simulated)
+------------------------------------------------------------------------------
+ Make inventory_agent accept only verified content from ops_alerts
+ (data_trust "verified" on ops.read_alerts). Re-running the scan with that
+ change, the worst score drops from 50 to 12 (HIGH -> MEDIUM) and 6 of 10
+ attack paths disappear.
+
+==============================================================================
+
+==============================================================================
+ BEFORE / AFTER COMPARISON
+==============================================================================
+                    BEFORE                       AFTER
+ Scenario           High risk - NimbusCart       NimbusCart after the fix
+ Worst score        50  [HIGH]                   12  [MEDIUM]
+ Attack paths       10                           4
+ Cross-agent paths  6                            0
+
+ Worst path before:
+   customer_messages -> support_agent -> inventory_agent -> suppliers.place_purchase_order
+ Worst path after:
+   social_mentions -> marketing_agent -> marketing.create_promotion
+
+ Result: the worst-case blast radius drops by 76% (50 -> 12) and 6 attack
+ paths disappear.
+==============================================================================

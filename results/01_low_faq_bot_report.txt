@@ -1,0 +1,47 @@
+==============================================================================
+ AI AGENT BLAST-RADIUS REPORT
+ Scenario : Low risk - FAQ bot
+ File     : scenarios\01_low_faq_bot.json
+==============================================================================
+ One agent, read-only tools, nothing shared with any other agent. Should
+ produce no false alarms.
+ Agents: 1   Resources: 3   Untrusted entry points: customer_questions
+ Attack paths found: 2   Cross-agent paths: 0
+
+ WORST-CASE BLAST RADIUS: 2  [LOW]
+   customer_questions -> faq_agent -> orders.lookup_status
+   (best-first search result matches the DFS maximum of 2)
+
+------------------------------------------------------------------------------
+ RANKED ATTACK PATHS   score = sensitivity x irreversibility x agents steered
+------------------------------------------------------------------------------
+ Rank  Score  Level  Agents   Untrusted entry -> what it reaches
+ 1         2  LOW         1   customer_questions -> order_status
+ 2         1  LOW         1   customer_questions -> kb_articles
+
+------------------------------------------------------------------------------
+ DETAILS (2 of 2 paths)
+------------------------------------------------------------------------------
+ #1  Score 2  [LOW]   2 x 1 x 1
+     Path : [entry] customer_questions
+              => steers faq_agent
+              -- orders.lookup_status (read) --> order_status
+     Why  : An attacker who can write to customer_questions (untrusted input)
+            can inject instructions into faq_agent, which trusts that input.
+            Final action: faq_agent can read order_status with
+            orders.lookup_status (sensitivity 2/5), a data-exposure risk.
+            Steering 1 agent gives 2 x 1 x 1 = 2.
+     Fix  : Low impact - no change needed. Keep it on the watch list.
+
+ #2  Score 1  [LOW]   1 x 1 x 1
+     Path : [entry] customer_questions
+              => steers faq_agent
+              -- kb.search_articles (read) --> kb_articles
+     Why  : An attacker who can write to customer_questions (untrusted input)
+            can inject instructions into faq_agent, which trusts that input.
+            Final action: faq_agent can read kb_articles with
+            kb.search_articles (sensitivity 1/5), a data-exposure risk.
+            Steering 1 agent gives 1 x 1 x 1 = 1.
+     Fix  : Low impact - no change needed. Keep it on the watch list.
+
+==============================================================================
