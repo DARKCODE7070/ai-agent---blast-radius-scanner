@@ -1,0 +1,204 @@
+==============================================================================
+ AI AGENT BLAST-RADIUS REPORT
+ Scenario : High risk - NimbusCart
+ File     : scenarios\03_high_nimbuscart.json
+==============================================================================
+ Support and Marketing both post to the shared #ops-alerts channel. Inventory
+ trusts that channel and can place real supplier purchase orders, so a
+ prompt-injected message reaches money.
+ Agents: 3   Resources: 8   Untrusted entry points: customer_messages, social_mentions
+ Attack paths found: 10   Cross-agent paths: 6
+
+ WORST-CASE BLAST RADIUS: 50  [HIGH]
+   customer_messages -> support_agent -> inventory_agent -> suppliers.place_purchase_order
+   (best-first search result matches the DFS maximum of 50)
+
+------------------------------------------------------------------------------
+ RANKED ATTACK PATHS   score = sensitivity x irreversibility x agents steered
+------------------------------------------------------------------------------
+ Rank  Score  Level  Agents   Untrusted entry -> what it reaches
+ 1        50  HIGH        2   customer_messages -> supplier_orders (write)
+ 2        50  HIGH        2   social_mentions -> supplier_orders (write)
+ 3        12  MEDIUM      1   social_mentions -> promotions (write)
+ 4         4  LOW         2   customer_messages -> inventory_db
+ 5         4  LOW         2   social_mentions -> inventory_db
+ 6         4  LOW         1   customer_messages -> ops_alerts (write)
+ 7         4  LOW         1   social_mentions -> ops_alerts (write)
+ 8         3  LOW         1   customer_messages -> orders_db
+ 9         2  LOW         2   customer_messages -> supplier_catalog
+ 10        2  LOW         2   social_mentions -> supplier_catalog
+
+------------------------------------------------------------------------------
+ DETAILS (10 of 10 paths)
+------------------------------------------------------------------------------
+ #1  Score 50  [HIGH]   5 x 5 x 2
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- ops.post_alert (write) --> ops_alerts
+              => steers inventory_agent
+              -- suppliers.place_purchase_order (write) --> supplier_orders
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. support_agent uses ops.post_alert to write ops_alerts.
+            inventory_agent trusts ops_alerts, so the attacker now steers
+            inventory_agent too - without ever touching it directly. Final
+            action: suppliers.place_purchase_order can write supplier_orders
+            - sensitivity 5/5, irreversibility 5/5 (cannot be undone).
+            Steering 2 agents gives 5 x 5 x 2 = 50.
+     Fix  : Break the cross-agent bridge: inventory_agent should accept only
+            verified (signed / human-approved) content from ops_alerts, not
+            act on anything posted there. Set data_trust of ops.read_alerts
+            to "verified". Also require human approval before
+            suppliers.place_purchase_order.
+
+ #2  Score 50  [HIGH]   5 x 5 x 2
+     Path : [entry] social_mentions
+              => steers marketing_agent
+              -- ops.post_alert (write) --> ops_alerts
+              => steers inventory_agent
+              -- suppliers.place_purchase_order (write) --> supplier_orders
+     Why  : An attacker who can write to social_mentions (untrusted input)
+            can inject instructions into marketing_agent, which trusts that
+            input. marketing_agent uses ops.post_alert to write ops_alerts.
+            inventory_agent trusts ops_alerts, so the attacker now steers
+            inventory_agent too - without ever touching it directly. Final
+            action: suppliers.place_purchase_order can write supplier_orders
+            - sensitivity 5/5, irreversibility 5/5 (cannot be undone).
+            Steering 2 agents gives 5 x 5 x 2 = 50.
+     Fix  : Break the cross-agent bridge: inventory_agent should accept only
+            verified (signed / human-approved) content from ops_alerts, not
+            act on anything posted there. Set data_trust of ops.read_alerts
+            to "verified". Also require human approval before
+            suppliers.place_purchase_order.
+
+ #3  Score 12  [MEDIUM]   4 x 3 x 1
+     Path : [entry] social_mentions
+              => steers marketing_agent
+              -- marketing.create_promotion (write) --> promotions
+     Why  : An attacker who can write to social_mentions (untrusted input)
+            can inject instructions into marketing_agent, which trusts that
+            input. Final action: marketing.create_promotion can write
+            promotions - sensitivity 4/5, irreversibility 3/5 (undo takes
+            real effort). Steering 1 agent gives 4 x 3 x 1 = 12.
+     Fix  : Narrow marketing.create_promotion (least privilege): limit what
+            it can change in promotions, or add a confirmation step.
+
+ #4  Score 4  [LOW]   2 x 1 x 2
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- ops.post_alert (write) --> ops_alerts
+              => steers inventory_agent
+              -- inventory.check_stock (read) --> inventory_db
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. support_agent uses ops.post_alert to write ops_alerts.
+            inventory_agent trusts ops_alerts, so the attacker now steers
+            inventory_agent too - without ever touching it directly. Final
+            action: inventory_agent can read inventory_db with
+            inventory.check_stock (sensitivity 2/5), a data-exposure risk.
+            Steering 2 agents gives 2 x 1 x 2 = 4.
+     Fix  : Break the cross-agent bridge: inventory_agent should accept only
+            verified (signed / human-approved) content from ops_alerts, not
+            act on anything posted there. Set data_trust of ops.read_alerts
+            to "verified".
+
+ #5  Score 4  [LOW]   2 x 1 x 2
+     Path : [entry] social_mentions
+              => steers marketing_agent
+              -- ops.post_alert (write) --> ops_alerts
+              => steers inventory_agent
+              -- inventory.check_stock (read) --> inventory_db
+     Why  : An attacker who can write to social_mentions (untrusted input)
+            can inject instructions into marketing_agent, which trusts that
+            input. marketing_agent uses ops.post_alert to write ops_alerts.
+            inventory_agent trusts ops_alerts, so the attacker now steers
+            inventory_agent too - without ever touching it directly. Final
+            action: inventory_agent can read inventory_db with
+            inventory.check_stock (sensitivity 2/5), a data-exposure risk.
+            Steering 2 agents gives 2 x 1 x 2 = 4.
+     Fix  : Break the cross-agent bridge: inventory_agent should accept only
+            verified (signed / human-approved) content from ops_alerts, not
+            act on anything posted there. Set data_trust of ops.read_alerts
+            to "verified".
+
+ #6  Score 4  [LOW]   2 x 2 x 1
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- ops.post_alert (write) --> ops_alerts
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. Final action: ops.post_alert can write ops_alerts -
+            sensitivity 2/5, irreversibility 2/5 (easy to undo). Steering 1
+            agent gives 2 x 2 x 1 = 4.
+     Fix  : Low impact - no change needed. Keep it on the watch list.
+
+ #7  Score 4  [LOW]   2 x 2 x 1
+     Path : [entry] social_mentions
+              => steers marketing_agent
+              -- ops.post_alert (write) --> ops_alerts
+     Why  : An attacker who can write to social_mentions (untrusted input)
+            can inject instructions into marketing_agent, which trusts that
+            input. Final action: ops.post_alert can write ops_alerts -
+            sensitivity 2/5, irreversibility 2/5 (easy to undo). Steering 1
+            agent gives 2 x 2 x 1 = 4.
+     Fix  : Low impact - no change needed. Keep it on the watch list.
+
+ #8  Score 3  [LOW]   3 x 1 x 1
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- orders.lookup_order (read) --> orders_db
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. Final action: support_agent can read orders_db with
+            orders.lookup_order (sensitivity 3/5), a data-exposure risk.
+            Steering 1 agent gives 3 x 1 x 1 = 3.
+     Fix  : Limit orders.lookup_order to the fields this agent actually needs
+            from orders_db.
+
+ #9  Score 2  [LOW]   1 x 1 x 2
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- ops.post_alert (write) --> ops_alerts
+              => steers inventory_agent
+              -- suppliers.search_catalog (read) --> supplier_catalog
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. support_agent uses ops.post_alert to write ops_alerts.
+            inventory_agent trusts ops_alerts, so the attacker now steers
+            inventory_agent too - without ever touching it directly. Final
+            action: inventory_agent can read supplier_catalog with
+            suppliers.search_catalog (sensitivity 1/5), a data-exposure risk.
+            Steering 2 agents gives 1 x 1 x 2 = 2.
+     Fix  : Break the cross-agent bridge: inventory_agent should accept only
+            verified (signed / human-approved) content from ops_alerts, not
+            act on anything posted there. Set data_trust of ops.read_alerts
+            to "verified".
+
+ #10  Score 2  [LOW]   1 x 1 x 2
+     Path : [entry] social_mentions
+              => steers marketing_agent
+              -- ops.post_alert (write) --> ops_alerts
+              => steers inventory_agent
+              -- suppliers.search_catalog (read) --> supplier_catalog
+     Why  : An attacker who can write to social_mentions (untrusted input)
+            can inject instructions into marketing_agent, which trusts that
+            input. marketing_agent uses ops.post_alert to write ops_alerts.
+            inventory_agent trusts ops_alerts, so the attacker now steers
+            inventory_agent too - without ever touching it directly. Final
+            action: inventory_agent can read supplier_catalog with
+            suppliers.search_catalog (sensitivity 1/5), a data-exposure risk.
+            Steering 2 agents gives 1 x 1 x 2 = 2.
+     Fix  : Break the cross-agent bridge: inventory_agent should accept only
+            verified (signed / human-approved) content from ops_alerts, not
+            act on anything posted there. Set data_trust of ops.read_alerts
+            to "verified".
+
+------------------------------------------------------------------------------
+ RECOMMENDED FIRST FIX (simulated)
+------------------------------------------------------------------------------
+ Make inventory_agent accept only verified content from ops_alerts
+ (data_trust "verified" on ops.read_alerts). Re-running the scan with that
+ change, the worst score drops from 50 to 12 (HIGH -> MEDIUM) and 6 of 10
+ attack paths disappear.
+
+==============================================================================

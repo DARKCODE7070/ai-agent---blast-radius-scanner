@@ -1,0 +1,39 @@
+==============================================================================
+ RESULTS - all scenarios
+==============================================================================
+ Scenario                       Paths  Cross  Worst  Level   Expected 
+ Low risk - FAQ bot                 2      0      2  LOW     LOW      
+ Medium risk - Helpdesk             3      2     12  MEDIUM  MEDIUM   
+ High risk - NimbusCart            10      6     50  HIGH    HIGH     
+ NimbusCart after the fix           4      0     12  MEDIUM  MEDIUM   
+ NimbusCart hardened (Role 1 t      3      0      3  LOW     LOW      
+
+ CHECKS
+  [PASS] 01_low_faq_bot.json runs without errors
+  [PASS] 01_low_faq_bot.json level is LOW  (got LOW)
+  [PASS] 01_low_faq_bot.json best-first search agrees with DFS
+  [PASS] 01_low_faq_bot.json every path has a reason and a fix
+  [PASS] 02_medium_helpdesk.json runs without errors
+  [PASS] 02_medium_helpdesk.json level is MEDIUM  (got MEDIUM)
+  [PASS] 02_medium_helpdesk.json best-first search agrees with DFS
+  [PASS] 02_medium_helpdesk.json every path has a reason and a fix
+  [PASS] 03_high_nimbuscart.json runs without errors
+  [PASS] 03_high_nimbuscart.json level is HIGH  (got HIGH)
+  [PASS] 03_high_nimbuscart.json best-first search agrees with DFS
+  [PASS] 03_high_nimbuscart.json every path has a reason and a fix
+  [PASS] 04_nimbuscart_fixed.json runs without errors
+  [PASS] 04_nimbuscart_fixed.json level is MEDIUM  (got MEDIUM)
+  [PASS] 04_nimbuscart_fixed.json best-first search agrees with DFS
+  [PASS] 04_nimbuscart_fixed.json every path has a reason and a fix
+  [PASS] 05_nimbuscart_hardened.json runs without errors
+  [PASS] 05_nimbuscart_hardened.json level is LOW  (got LOW)
+  [PASS] 05_nimbuscart_hardened.json best-first search agrees with DFS
+  [PASS] 05_nimbuscart_hardened.json every path has a reason and a fix
+  [PASS] order: low < medium < high  (2 < 12 < 50)
+  [PASS] order: fixed < high (fix works)  (50 -> 12, 76% lower)
+  [PASS] order: hardened < high (Role 1 tool design is safer)  (50 -> 3)
+
+ 23/23 checks passed
+==============================================================================
+
+Results table written to results\results_table.md

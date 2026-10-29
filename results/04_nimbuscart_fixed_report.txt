@@ -1,0 +1,74 @@
+==============================================================================
+ AI AGENT BLAST-RADIUS REPORT
+ Scenario : NimbusCart after the fix
+ File     : scenarios\04_nimbuscart_fixed.json
+==============================================================================
+ Same as NimbusCart, but Inventory now only accepts verified (signed) alerts
+ from #ops-alerts, so a fake alert posted by a hijacked agent is ignored. The
+ cross-agent bridge is gone.
+ Agents: 3   Resources: 8   Untrusted entry points: customer_messages, social_mentions
+ Attack paths found: 4   Cross-agent paths: 0
+
+ WORST-CASE BLAST RADIUS: 12  [MEDIUM]
+   social_mentions -> marketing_agent -> marketing.create_promotion
+   (best-first search result matches the DFS maximum of 12)
+
+------------------------------------------------------------------------------
+ RANKED ATTACK PATHS   score = sensitivity x irreversibility x agents steered
+------------------------------------------------------------------------------
+ Rank  Score  Level  Agents   Untrusted entry -> what it reaches
+ 1        12  MEDIUM      1   social_mentions -> promotions (write)
+ 2         4  LOW         1   customer_messages -> ops_alerts (write)
+ 3         4  LOW         1   social_mentions -> ops_alerts (write)
+ 4         3  LOW         1   customer_messages -> orders_db
+
+------------------------------------------------------------------------------
+ DETAILS (4 of 4 paths)
+------------------------------------------------------------------------------
+ #1  Score 12  [MEDIUM]   4 x 3 x 1
+     Path : [entry] social_mentions
+              => steers marketing_agent
+              -- marketing.create_promotion (write) --> promotions
+     Why  : An attacker who can write to social_mentions (untrusted input)
+            can inject instructions into marketing_agent, which trusts that
+            input. Final action: marketing.create_promotion can write
+            promotions - sensitivity 4/5, irreversibility 3/5 (undo takes
+            real effort). Steering 1 agent gives 4 x 3 x 1 = 12.
+     Fix  : Narrow marketing.create_promotion (least privilege): limit what
+            it can change in promotions, or add a confirmation step.
+
+ #2  Score 4  [LOW]   2 x 2 x 1
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- ops.post_alert (write) --> ops_alerts
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. Final action: ops.post_alert can write ops_alerts -
+            sensitivity 2/5, irreversibility 2/5 (easy to undo). Steering 1
+            agent gives 2 x 2 x 1 = 4.
+     Fix  : Low impact - no change needed. Keep it on the watch list.
+
+ #3  Score 4  [LOW]   2 x 2 x 1
+     Path : [entry] social_mentions
+              => steers marketing_agent
+              -- ops.post_alert (write) --> ops_alerts
+     Why  : An attacker who can write to social_mentions (untrusted input)
+            can inject instructions into marketing_agent, which trusts that
+            input. Final action: ops.post_alert can write ops_alerts -
+            sensitivity 2/5, irreversibility 2/5 (easy to undo). Steering 1
+            agent gives 2 x 2 x 1 = 4.
+     Fix  : Low impact - no change needed. Keep it on the watch list.
+
+ #4  Score 3  [LOW]   3 x 1 x 1
+     Path : [entry] customer_messages
+              => steers support_agent
+              -- orders.lookup_order (read) --> orders_db
+     Why  : An attacker who can write to customer_messages (untrusted input)
+            can inject instructions into support_agent, which trusts that
+            input. Final action: support_agent can read orders_db with
+            orders.lookup_order (sensitivity 3/5), a data-exposure risk.
+            Steering 1 agent gives 3 x 1 x 1 = 3.
+     Fix  : Limit orders.lookup_order to the fields this agent actually needs
+            from orders_db.
+
+==============================================================================

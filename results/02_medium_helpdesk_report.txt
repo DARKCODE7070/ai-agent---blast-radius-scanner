@@ -1,0 +1,83 @@
+==============================================================================
+ AI AGENT BLAST-RADIUS REPORT
+ Scenario : Medium risk - Helpdesk
+ File     : scenarios\02_medium_helpdesk.json
+==============================================================================
+ Two agents share one resource (ticket notes). A real cross-agent chain
+ exists, but it only reaches reversible, mid-sensitivity actions.
+ Agents: 2   Resources: 3   Untrusted entry points: support_tickets
+ Attack paths found: 3   Cross-agent paths: 2
+
+ WORST-CASE BLAST RADIUS: 12  [MEDIUM]
+   support_tickets -> triage_agent -> account_agent -> crm.update_contact
+   (best-first search result matches the DFS maximum of 12)
+
+------------------------------------------------------------------------------
+ RANKED ATTACK PATHS   score = sensitivity x irreversibility x agents steered
+------------------------------------------------------------------------------
+ Rank  Score  Level  Agents   Untrusted entry -> what it reaches
+ 1        12  MEDIUM      2   support_tickets -> crm_records (write)
+ 2         6  LOW         2   support_tickets -> crm_records
+ 3         4  LOW         1   support_tickets -> ticket_notes (write)
+
+------------------------------------------------------------------------------
+ DETAILS (3 of 3 paths)
+------------------------------------------------------------------------------
+ #1  Score 12  [MEDIUM]   3 x 2 x 2
+     Path : [entry] support_tickets
+              => steers triage_agent
+              -- notes.write_note (write) --> ticket_notes
+              => steers account_agent
+              -- crm.update_contact (write) --> crm_records
+     Why  : An attacker who can write to support_tickets (untrusted input)
+            can inject instructions into triage_agent, which trusts that
+            input. triage_agent uses notes.write_note to write ticket_notes.
+            account_agent trusts ticket_notes, so the attacker now steers
+            account_agent too - without ever touching it directly. Final
+            action: crm.update_contact can write crm_records - sensitivity
+            3/5, irreversibility 2/5 (easy to undo). Steering 2 agents gives
+            3 x 2 x 2 = 12.
+     Fix  : Break the cross-agent bridge: account_agent should accept only
+            verified (signed / human-approved) content from ticket_notes, not
+            act on anything posted there. Set data_trust of notes.read_notes
+            to "verified".
+
+ #2  Score 6  [LOW]   3 x 1 x 2
+     Path : [entry] support_tickets
+              => steers triage_agent
+              -- notes.write_note (write) --> ticket_notes
+              => steers account_agent
+              -- crm.read_record (read) --> crm_records
+     Why  : An attacker who can write to support_tickets (untrusted input)
+            can inject instructions into triage_agent, which trusts that
+            input. triage_agent uses notes.write_note to write ticket_notes.
+            account_agent trusts ticket_notes, so the attacker now steers
+            account_agent too - without ever touching it directly. Final
+            action: account_agent can read crm_records with crm.read_record
+            (sensitivity 3/5), a data-exposure risk. Steering 2 agents gives
+            3 x 1 x 2 = 6.
+     Fix  : Break the cross-agent bridge: account_agent should accept only
+            verified (signed / human-approved) content from ticket_notes, not
+            act on anything posted there. Set data_trust of notes.read_notes
+            to "verified".
+
+ #3  Score 4  [LOW]   2 x 2 x 1
+     Path : [entry] support_tickets
+              => steers triage_agent
+              -- notes.write_note (write) --> ticket_notes
+     Why  : An attacker who can write to support_tickets (untrusted input)
+            can inject instructions into triage_agent, which trusts that
+            input. Final action: notes.write_note can write ticket_notes -
+            sensitivity 2/5, irreversibility 2/5 (easy to undo). Steering 1
+            agent gives 2 x 2 x 1 = 4.
+     Fix  : Low impact - no change needed. Keep it on the watch list.
+
+------------------------------------------------------------------------------
+ RECOMMENDED FIRST FIX (simulated)
+------------------------------------------------------------------------------
+ Make account_agent accept only verified content from ticket_notes
+ (data_trust "verified" on notes.read_notes). Re-running the scan with that
+ change, the worst score drops from 12 to 4 (MEDIUM -> LOW) and 2 of 3 attack
+ paths disappear.
+
+==============================================================================
