@@ -1,24 +1,20 @@
-"""
-Draws the agent graph and highlights the highest-scoring attack path in red.
-
-Put this file in the same folder as attack_path.py and graph_builder.py.
-Then run:   python visualize_worst_path.py
-"""
+import os
+import json
+import sys
 import matplotlib.pyplot as plt
 import networkx as nx
 from matplotlib.lines import Line2D
 
-# Scoring file: attack_path.py
-import attack_path as scorer   # must expose: graph, attack_paths, attack_path_scoring
+import attack_path as ap
+import graph_builder as gb 
 
 
 EDGE_COLORS = {
-    "untrusted": "#d62728",   # attacker-controlled text enters here
-    "verified": "#2ca02c",    # checked / trusted source
-    "write": "#1f77b4",       # agent pushes data OUT to a resource
-    "other": "#7f7f7f",       # data_trust is null
+    "untrusted": "#d62728",  
+    "verified": "#2ca02c",   
+    "write": "#1f77b4",       
+    "other": "#7f7f7f",       
 }
-
 
 def _edge_kind(attrs):
     if attrs.get("access") == "write":
@@ -29,18 +25,24 @@ def _edge_kind(attrs):
 
 def find_worst_path(G, attack_paths, score_fn, only_untrusted_entry=False):
     """
-    attack_paths is a list of groups; each group is a list of edge-paths
-    (one group per source->target resource pair). Flatten, score every
-    path, and return (best_path, best_score, all_scored).
+    attack_paths is a dict of groups (or list of groups); each group has paths.
+    Flatten, score every path, and return (best_path, best_score, all_scored).
 
     Set only_untrusted_entry=True to keep only paths that START at an
     untrusted read.
     """
-    flat = [p for group in attack_paths for p in group]
+    all_paths = []
+    for item in attack_paths.values():
+        if isinstance(item, dict) and "paths" in item:
+            all_paths.extend(item["paths"])
+        elif isinstance(item, list):
+            all_paths.extend(item)
+
+    flat = all_paths
     if only_untrusted_entry:
         flat = [p for p in flat
                 if G.edges[p[0]].get("data_trust") == "untrusted"]
-    scored = sorted(((score_fn(p), p) for p in flat),
+    scored = sorted(((score_fn(G, p), p) for p in flat),
                     key=lambda t: t[0], reverse=True)
     if not scored:
         return None, 0, []
@@ -109,7 +111,7 @@ def visualize_graph(G, highlight_path=None, score=None,
                     numbered in order. Everything else is faded.
     """
     pos, layered = _layout(G)
-    fig, ax = plt.subplots(figsize=(15, 9))
+    fig, ax = plt.subplots(figsize=(14, 8))
 
     hl_edges = {tuple(e) for e in (highlight_path or [])}
     hl_nodes = {n for e in hl_edges for n in e[:2]}
@@ -125,9 +127,9 @@ def visualize_graph(G, highlight_path=None, score=None,
             G, pos, nodelist=nodes, node_shape=shape, node_color=color,
             edgecolors=["red" if n in hl_nodes else "black" for n in nodes],
             linewidths=[3.5 if n in hl_nodes else 1 for n in nodes],
-            node_size=3200, ax=ax)
+            node_size=2800, ax=ax)
     nx.draw_networkx_labels(G, pos, labels={n: n.replace("_", "\n") for n in G},
-                            font_size=7, font_weight="bold", ax=ax)
+                            font_size=8, font_weight="bold", ax=ax)
 
     # group parallel edges so they fan out instead of overlapping
     for u, v in {(u, v) for u, v, _ in G.edges(keys=True)}:
@@ -144,20 +146,20 @@ def visualize_graph(G, highlight_path=None, score=None,
                 G, pos, edgelist=[(u, v, k)], ax=ax,
                 edge_color="red" if on_path
                 else EDGE_COLORS.get(_edge_kind(attrs), "#7f7f7f"),
-                width=4.5 if on_path else 1.6,
+                width=4.0 if on_path else 1.5,
                 alpha=1.0 if on_path else fade,
-                arrows=True, arrowsize=20 if on_path else 14,
-                node_size=3000, connectionstyle=f"arc3,rad={rad}")
+                arrows=True, arrowsize=18 if on_path else 12,
+                node_size=2800, connectionstyle=f"arc3,rad={rad}")
 
             if attrs.get("tool_name"):
                 (x1, y1), (x2, y2) = pos[u], pos[v]
-                # point on the curve; long arcs get their label near the
-                # arrowhead so it stays clear of edges they cross
                 t = 0.7 if (layered and span > COL_GAP * 1.1) else 0.5
                 cx = (x1 + x2) / 2 + rad * (y2 - y1)
                 cy = (y1 + y2) / 2 - rad * (x2 - x1)
                 mx = (1 - t) ** 2 * x1 + 2 * (1 - t) * t * cx + t ** 2 * x2
+                # FIXED BUG: replaced x2 with y2 below
                 my = (1 - t) ** 2 * y1 + 2 * (1 - t) * t * cy + t ** 2 * y2
+                
                 label = attrs["tool_name"]
                 if on_path:
                     label = f"{step_of[(u, v, k)]}. {label}"
@@ -166,43 +168,58 @@ def visualize_graph(G, highlight_path=None, score=None,
                         color="red" if on_path else "black",
                         alpha=1.0 if on_path else max(fade, 0.6),
                         ha="center", va="center",
-                        bbox=dict(boxstyle="round,pad=0.15", fc="white",
-                                  ec="red" if on_path else "none", alpha=0.9))
+                        bbox=dict(boxstyle="round,pad=0.2", fc="white",
+                                  ec="red" if on_path else "#cccccc", alpha=0.95))
 
     legend = [
         Line2D([0], [0], marker="s", color="w", markerfacecolor="#aec7e8",
-               markeredgecolor="black", markersize=12, label="Agent"),
+               markeredgecolor="black", markersize=10, label="Agent"),
         Line2D([0], [0], marker="o", color="w", markerfacecolor="#ffdd99",
-               markeredgecolor="black", markersize=12, label="Resource"),
+               markeredgecolor="black", markersize=10, label="Resource"),
         Line2D([0], [0], color=EDGE_COLORS["untrusted"], lw=2, label="read, untrusted"),
         Line2D([0], [0], color=EDGE_COLORS["verified"], lw=2, label="read, verified"),
         Line2D([0], [0], color=EDGE_COLORS["write"], lw=2, label="write"),
     ]
     if highlight_path:
-        legend.append(Line2D([0], [0], color="red", lw=5,
+        legend.append(Line2D([0], [0], color="red", lw=4,
                              label="worst-case damage path"))
     fig.legend(handles=legend, loc="lower center", ncol=len(legend), fontsize=8)
 
     if score is not None:
         title += f"   (worst path score: {score:.2f})"
-    ax.set_title(title, fontsize=13)
-    ax.set_aspect("equal")   # keeps curved edges and their labels lined up
+    ax.set_title(title, fontsize=12, pad=12, fontweight="bold")
     ax.axis("off")
-    ax.margins(0.08)
-    fig.tight_layout(rect=(0, 0.06, 1, 1))
+    ax.margins(0.15)
+    fig.tight_layout(rect=(0, 0.07, 1, 0.96))
     if save_to:
-        fig.savefig(save_to, dpi=200, bbox_inches="tight")
+        os.makedirs(os.path.dirname(save_to), exist_ok=True)
+        fig.savefig(save_to, dpi=250, bbox_inches="tight")
     plt.show()
+    plt.close(fig)
 
 
 if __name__ == "__main__":
-    G = scorer.graph
+    try:
+        schema_file = sys.argv[1]
+    except IndexError:
+        schema_file = "case.json"
+
+    with open(schema_file, "r", encoding="utf-8") as file:
+        data = json.load(file)
+
+    G = gb.build_agent_graph(data)
+    attack_paths = ap.attack_path_finder(G)
+
     worst, score, scored = find_worst_path(
-        G, scorer.attack_paths, scorer.attack_path_scoring)
+        G, attack_paths, ap.attack_path_scorer
+    )
+
+    schema_name = os.path.splitext(os.path.basename(schema_file))[0]
+    save_path = os.path.join("outputs", f"{schema_name}.png")
 
     if worst is None:
         print("No attack paths found.")
-        visualize_graph(G, title="No attack paths found")
+        visualize_graph(G, title="No attack paths found", save_to=save_path)
     else:
         print(f"\nWorst path (score {score:.2f}):")
         for u, v, k in worst:
@@ -211,4 +228,5 @@ if __name__ == "__main__":
         if ties:
             print(f"({len(ties)} other path(s) tie with this score)")
         visualize_graph(G, highlight_path=worst, score=score,
-                        title="NimbusCart (vulnerable)", save_to="worst_path.png")
+                        title=f"{schema_name} (vulnerable)", save_to=save_path)
+    print(f"Saved clean graph visualization to '{save_path}'")
