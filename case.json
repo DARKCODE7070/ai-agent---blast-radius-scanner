@@ -1,52 +1,32 @@
 {
-  "scenario": "NimbusCart after the fix",
-  "description": "Same as NimbusCart, but Inventory now only accepts verified (signed) alerts from #ops-alerts, so a fake alert posted by a hijacked agent is ignored. The cross-agent bridge is gone.",
+  "scenario": "Medium risk - Helpdesk",
+  "description": "Two agents share one resource (ticket notes). A real cross-agent chain exists, but it only reaches reversible, mid-sensitivity actions.",
   "expected_level": "MEDIUM",
   "resources": [
     {
-      "id": "customer_messages",
-      "name": "Inbound customer chat and email"
+      "id": "support_tickets",
+      "name": "Tickets submitted by customers"
     },
     {
-      "id": "social_mentions",
-      "name": "Public social-media replies the marketing agent monitors"
+      "id": "ticket_notes",
+      "name": "Internal notes shared between agents"
     },
     {
-      "id": "orders_db",
-      "name": "Customer orders"
-    },
-    {
-      "id": "ops_alerts",
-      "name": "Shared Slack channel #ops-alerts"
-    },
-    {
-      "id": "inventory_db",
-      "name": "Stock levels per SKU"
-    },
-    {
-      "id": "supplier_catalog",
-      "name": "Approved supplier catalogues"
-    },
-    {
-      "id": "supplier_orders",
-      "name": "Real purchase orders sent to suppliers"
-    },
-    {
-      "id": "promotions",
-      "name": "Live store promotions and discounts"
+      "id": "crm_records",
+      "name": "Customer contact details and preferences"
     }
   ],
   "agents": [
     {
-      "name": "support_agent",
-      "description": "Reads customer messages, looks up orders, can post to #ops-alerts",
+      "name": "triage_agent",
+      "description": "Reads new tickets and writes a summary note",
       "tools": [
         {
-          "name": "support.read_customer_message",
+          "name": "tickets.read",
           "description": "",
           "blast_radius": {
             "access": "read",
-            "reaches": "customer_messages",
+            "reaches": "support_tickets",
             "data_trust": "untrusted",
             "requires_human_approval": false,
             "sensitivity": 1,
@@ -54,23 +34,11 @@
           }
         },
         {
-          "name": "orders.lookup_order",
-          "description": "",
-          "blast_radius": {
-            "access": "read",
-            "reaches": "orders_db",
-            "data_trust": "verified",
-            "requires_human_approval": false,
-            "sensitivity": 3,
-            "irreversibility": 1
-          }
-        },
-        {
-          "name": "ops.post_alert",
+          "name": "notes.write_note",
           "description": "",
           "blast_radius": {
             "access": "write",
-            "reaches": "ops_alerts",
+            "reaches": "ticket_notes",
             "data_trust": null,
             "requires_human_approval": false,
             "sensitivity": 2,
@@ -80,96 +48,42 @@
       ]
     },
     {
-      "name": "inventory_agent",
-      "description": "Reads #ops-alerts, trusts it, and can place real supplier purchase orders",
+      "name": "account_agent",
+      "description": "Acts on triage notes to update customer records",
       "tools": [
         {
-          "name": "ops.read_alerts",
+          "name": "notes.read_notes",
           "description": "",
           "blast_radius": {
             "access": "read",
-            "reaches": "ops_alerts",
-            "data_trust": "verified",
-            "requires_human_approval": false,
-            "sensitivity": 2,
-            "irreversibility": 1
-          }
-        },
-        {
-          "name": "inventory.check_stock",
-          "description": "",
-          "blast_radius": {
-            "access": "read",
-            "reaches": "inventory_db",
-            "data_trust": "verified",
-            "requires_human_approval": false,
-            "sensitivity": 2,
-            "irreversibility": 1
-          }
-        },
-        {
-          "name": "suppliers.search_catalog",
-          "description": "",
-          "blast_radius": {
-            "access": "read",
-            "reaches": "supplier_catalog",
-            "data_trust": "verified",
-            "requires_human_approval": false,
-            "sensitivity": 1,
-            "irreversibility": 1
-          }
-        },
-        {
-          "name": "suppliers.place_purchase_order",
-          "description": "",
-          "blast_radius": {
-            "access": "write",
-            "reaches": "supplier_orders",
-            "data_trust": null,
-            "requires_human_approval": false,
-            "sensitivity": 5,
-            "irreversibility": 5
-          }
-        }
-      ]
-    },
-    {
-      "name": "marketing_agent",
-      "description": "Runs promotions and can also post to #ops-alerts",
-      "tools": [
-        {
-          "name": "social.read_mentions",
-          "description": "Read public social-media replies and mentions.",
-          "blast_radius": {
-            "access": "read",
-            "reaches": "social_mentions",
-            "data_trust": "untrusted",
-            "requires_human_approval": false,
-            "sensitivity": 1,
-            "irreversibility": 1
-          }
-        },
-        {
-          "name": "marketing.create_promotion",
-          "description": "",
-          "blast_radius": {
-            "access": "write",
-            "reaches": "promotions",
-            "data_trust": null,
-            "requires_human_approval": false,
-            "sensitivity": 4,
-            "irreversibility": 3
-          }
-        },
-        {
-          "name": "ops.post_alert",
-          "description": "",
-          "blast_radius": {
-            "access": "write",
-            "reaches": "ops_alerts",
+            "reaches": "ticket_notes",
             "data_trust": null,
             "requires_human_approval": false,
             "sensitivity": 2,
+            "irreversibility": 1
+          }
+        },
+        {
+          "name": "crm.read_record",
+          "description": "",
+          "blast_radius": {
+            "access": "read",
+            "reaches": "crm_records",
+            "data_trust": "verified",
+            "requires_human_approval": false,
+            "sensitivity": 3,
+            "irreversibility": 1
+          }
+        },
+        {
+          "name": "crm.update_contact",
+          "description": "",
+          "blast_radius": {
+            "access": "write",
+            "reaches": "crm_records",
+            "data_trust": null,
+            "requires_human_approval": false,
+            "sensitivity": 3,
             "irreversibility": 2
           }
         }
